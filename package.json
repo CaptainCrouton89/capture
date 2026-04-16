@@ -10,7 +10,7 @@
     "src"
   ],
   "scripts": {
-    "build": "esbuild src/capture.ts --bundle --platform=node --format=cjs --outfile=bin/capture '--banner:js=#!/usr/bin/env node' && chmod +x bin/capture"
+    "build": "esbuild src/capture.ts --bundle --platform=node --format=cjs --outfile=bin/capture '--banner:js=#!/usr/bin/env node' \"--define:globalThis.__CAPTURE_VERSION__=\\\"$npm_package_version\\\"\" && chmod +x bin/capture"
   },
   "repository": {
     "type": "git",

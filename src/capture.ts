@@ -406,6 +406,24 @@ Workflow:
 async function main(): Promise<void> {
   const [command, ...args] = process.argv.slice(2);
 
+  if (command === "--version" || command === "-v" || command === "version") {
+    // Version is injected at build time via esbuild's --define flag.
+    // Falls back to reading package.json at runtime if not injected.
+    const declared = (globalThis as { __CAPTURE_VERSION__?: string }).__CAPTURE_VERSION__;
+    if (declared) {
+      console.log(declared);
+      return;
+    }
+    try {
+      const pkgPath = path.resolve(__dirname, "..", "package.json");
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as { version: string };
+      console.log(pkg.version);
+    } catch {
+      console.log("unknown");
+    }
+    return;
+  }
+
   switch (command) {
     case "session":
       return sessionMain(args);
