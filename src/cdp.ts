@@ -1684,7 +1684,8 @@ async function main() {
       );
       console.error(
         `\nFound ${endpoints.length} CDP endpoint${endpoints.length > 1 ? 's' : ''}. Default: port ${preferred.port} (${preferred.app}).` +
-          `\n\nNext: capture list --port ${preferred.port}`,
+          `\n\nNext (most tasks): capture session start --url <your app url>` +
+          `\n      (one-off):    capture list --port ${preferred.port}`,
       );
       break;
     }
@@ -1767,9 +1768,12 @@ async function main() {
       }, null, 2));
       console.error(
         `\nOpened: ${tab.title || url}` +
-          `\n\nNext: capture exec "<js>" --port ${p} --target ${tab.id.slice(0, 8)}` +
-          `\n      capture screenshot --port ${p} --target ${tab.id.slice(0, 8)}` +
-          `\n      capture a11y --port ${p} --target ${tab.id.slice(0, 8)}`,
+          `\n\nFor a multi-step validation, prefer a session (auto-targets this kind of tab):` +
+          `\n  capture session start --url "${url}"` +
+          `\n\nOr interact one-off against this tab:` +
+          `\n  capture a11y       --port ${p} --target ${tab.id.slice(0, 8)} --interactive` +
+          `\n  capture screenshot --port ${p} --target ${tab.id.slice(0, 8)}` +
+          `\n  capture exec "<js>" --port ${p} --target ${tab.id.slice(0, 8)}`,
       );
       break;
     }

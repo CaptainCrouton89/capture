@@ -381,21 +381,29 @@ async function sessionMain(args: string[]): Promise<void> {
     default:
       console.log(`capture session — manage capture sessions
 
-Commands:
-  start [--url <url>]                Start a capture session
-  stop <session-id>                  Finalize and bundle all artifacts
-  list                               List active and stopped sessions
-  view <id> [--filter section]       View bundle manifest
-  log <path> [--name label]          Tail a log file into the session
+Sub-commands:
+  start [--url <url>]             Start a session (opens tab, records HAR, sets active context)
+  stop  <session-id>              Finalize and bundle artifacts (screenshots, HAR, a11y, logs)
+  list                            List active and stopped sessions
+  view  <id> [--filter section]   View bundle manifest; section = screenshots|har|a11y|logs
 
-Workflow:
+Why sessions: once started, every subsequent capture command auto-fills
+--target (the tab) and --har (the recording). No manual flag threading.
+
+Typical flow:
   1. capture session start --url http://localhost:3000
-  2. Use CDP commands directly:
-       capture screenshot --url localhost --out $CAPTURE_DIR/shots/homepage.png --har $HAR_ID
-       capture exec "document.querySelector('.btn').click()" --url localhost --har $HAR_ID
-       capture a11y --url localhost --json > $CAPTURE_DIR/a11y/after-login.json
+  2. Interact — no --target / --har needed:
+       capture a11y --interactive
+       capture click "Sign in"
+       capture type "hi@me.com" --into "Email"
+       capture screenshot
+       capture navigate https://app.example.com/dashboard
+       capture har read --filter-url /api
   3. capture session stop <session-id>
-  4. capture session view <session-id>`);
+  4. capture session view <session-id>
+
+Related:  capture log <path> [--name label]   Tail a log into the active session
+See also: capture --help                      Full command list`);
   }
 }
 
@@ -448,55 +456,73 @@ async function main(): Promise<void> {
       return cdpMain();
 
     default:
-      console.log(`Capture — session management and CDP browser automation
+      console.log(`Capture — browser automation over CDP for validating UI features.
 
-Session commands:
-  session start [--url <url>]        Start a capture session
-  session stop <session-id>          Finalize and bundle all artifacts
-  session list                       List active and stopped sessions
-  session view <id> [--filter ...]   View bundle manifest
-  log <path> [--name label]          Tail a log file into the session
+Most tasks start with a session. Once a session is active, every command
+auto-fills --target (the tab) and --har (the recording) — don't thread
+those flags yourself.
 
-CDP commands:
-  detect                             Detect CDP port
-  exec <code>                        Execute JS in a browser tab
-  exec --file <path>                 Execute JS from file
-  list                               List all browser tabs
-  open <url>                         Open URL in browser
-  reset-tab <url>                    Abandon stuck tab, open fresh one
-  screenshot                         Capture screenshot
-  click "name"                       Click element by accessible name
-  type "text"                        Type text into focused element
-  a11y                               Get accessibility tree
-  record                             Passive HAR recording
-  navigate <url>                     Navigate to URL and record HAR
-  network <offline|online>           Toggle network (simulate disconnect)
-  har create|read|delete             Manage HAR recordings
+TYPICAL WORKFLOW
 
-Options (CDP):
-  --port <port>       Override CDP port
-  --target <tabId>    Target tab by exact ID (preferred, parallel-safe)
-  --url <pattern>     Target tab by URL pattern (fuzzy match)
-  --har <id>          Append traffic to a HAR recording
-  --out <path>        Output path (screenshot)
-  --json              JSON output (a11y)
-  --interactive       Interactive elements only (a11y)
-  --role <role>       ARIA role filter (click)
-  --into "field"      Target field by name (type)
-  --no-screenshot     Skip auto-screenshot (click, type)
-  --filter-url <pat>  Filter HAR by URL substring/regex (har read)
-  --filter-status <s> Filter HAR by status code, prefix, or range (har read)
-  --filter-method <m> Filter HAR by HTTP method (har read)
-  --limit <N>         Limit HAR entries returned (har read)
+  1. Start a session (opens tab, starts HAR, marks it active):
+       capture session start --url http://localhost:3000
 
-Examples:
-  capture session start --url http://localhost:3000
-  capture session stop <session-id>
-  capture detect
-  capture list
-  capture exec "document.title" --url example
-  capture screenshot --url example --out /tmp/shot.png
-  capture a11y --url example --interactive`);
+  2. Interact — no --target / --har needed:
+       capture a11y --interactive           See what's on the page
+       capture click "Sign in"              Click by accessible name (auto-screenshots)
+       capture type "hi@me.com" --into "Email"
+       capture screenshot                   Save current state
+       capture navigate https://...         Navigate within the session
+       capture exec "document.title"        Run JS (supports await)
+       capture har read --filter-url /api   Inspect recorded traffic
+
+  3. Bundle and inspect:
+       capture session stop  <session-id>
+       capture session view  <session-id>
+
+SESSION COMMANDS
+
+  session start [--url <url>]              Start a session
+  session stop  <session-id>               Finalize and bundle artifacts
+  session list                             List active and stopped sessions
+  session view  <id> [--filter section]    section = screenshots|har|a11y|logs
+  log <path> [--name label]                Tail a log file into the active session
+
+INTERACTION COMMANDS (work inside or outside a session)
+
+  a11y [--interactive] [--json]            Accessibility tree (use this first to see elements)
+  click "name" [--role <role>]             Click by accessible name
+  type "text" [--into "Field"]             Type into focused element or named field
+  screenshot [--out <path>] [--full-page]  Screenshot (viewport: desktop|desktop-wide|tablet|mobile)
+  exec <code>  |  exec --file <path>       Evaluate JS; await is supported
+  navigate <url> [--settle <ms>]           Navigate the current tab + record HAR
+
+DIAGNOSTICS & ONE-OFFS (no session needed)
+
+  detect                                   Find running CDP endpoints
+  list                                     List open tabs across endpoints
+  open <url> [--new]                       Open a URL, return its tab id
+  reset-tab <url>                          Abandon a stuck tab, open fresh (updates session)
+  record [--duration <secs>]               Passive HAR recording; parallel-safe capture
+  network <offline|online>                 Toggle connectivity for a tab
+  har create | read [id] | delete <id>     Manage standalone HAR recordings
+
+TARGETING (only when NOT in a session, or picking a parallel tab)
+
+  --target <tabId>   Exact id; a prefix of 8 chars is enough (preferred, parallel-safe)
+  --url <pattern>    Fuzzy URL match against open tabs
+                     NOTE: on \`session start\`, --url is a URL to OPEN, not a pattern.
+
+HELP
+
+  capture <command> --help       Per-command usage, e.g. capture click --help, capture har --help
+  capture --version              Print version
+
+PREREQ — a browser with CDP must be running:
+  Arc                 enabled by default
+  Chrome / Chromium   --remote-debugging-port=9222
+  Electron apps       CDP exposed automatically
+  Verify with:        capture detect`);
   }
 }
 
